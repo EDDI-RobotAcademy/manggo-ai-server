@@ -1,0 +1,29 @@
+import os
+import urllib.parse
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+load_dotenv()
+
+password = urllib.parse.quote_plus(os.getenv("MYSQL_PASSWORD"))
+
+DATABASE_URL = (
+    f"mysql+pymysql://{os.getenv('MYSQL_USER')}:{password}"
+    f"@{os.getenv('MYSQL_HOST')}:{os.getenv('MYSQL_PORT')}/{os.getenv('MYSQL_DATABASE')}"
+)
+
+engine = create_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_pre_ping=True
+)
+
+SessionLocal = sessionmaker(authcommit=False, authflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db_session():
+    return SessionLocal()
