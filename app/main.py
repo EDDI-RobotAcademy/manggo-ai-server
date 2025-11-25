@@ -1,11 +1,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from config.database.session import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from weather.adapter.input.web.weather_router import weather_router
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -15,11 +17,13 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # 정확한 origin만 허용
-    allow_credentials=True,      # 쿠키 허용
-    allow_methods=["*"],         # 모든 HTTP 메서드 허용
-    allow_headers=["*"],         # 모든 헤더 허용
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+app.include_router(weather_router, prefix="/weather")
 
 # 앱 실행
 if __name__ == "__main__":
