@@ -22,7 +22,7 @@ engine = create_engine(
     pool_pre_ping=True
 )
 
-SessionLocal = sessionmaker(authcommit=False, authflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
