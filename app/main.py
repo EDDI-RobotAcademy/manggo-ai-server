@@ -32,7 +32,6 @@ app.add_middleware(
 )
 
 app.include_router(login_router, prefix="/login")
-
 app.include_router(weather_router, prefix="/weather")
 app.include_router(documents_openai_router, prefix="/documents-openai")
 
