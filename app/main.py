@@ -2,14 +2,8 @@ import os
 from dotenv import load_dotenv
 
 from login.adapter.input.web.google_oauth_router import login_router
-from anonymous_board.adapter.input.web.anonymous_board_router import anonymous_board_router
-from board.adapter.input.web.board_router import board_router
 from config.database.session import Base, engine
-from documents.adapter.input.web.documents_router import documents_router
 from documents_openai.adapter.input.web.documents_openai_router import documents_openai_router
-
-from documents_multi_agents.adapter.input.web.document_multi_agent_router import documents_multi_agents_router
-from social_oauth.adapter.input.web.google_oauth2_router import authentication_router
 
 load_dotenv()
 
@@ -35,11 +29,6 @@ app.add_middleware(
 )
 
 app.include_router(login_router, prefix="/login")
-app.include_router(anonymous_board_router, prefix="/anonymouse-board")
-app.include_router(authentication_router, prefix="/authentication")
-app.include_router(board_router, prefix="/board")
-app.include_router(documents_router, prefix="/documents")
-app.include_router(documents_multi_agents_router, prefix="/documents-multi-agents")
 app.include_router(documents_openai_router, prefix="/documents-openai")
 
 # 앱 실행
