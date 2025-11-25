@@ -431,3 +431,6 @@ models/
 # exclude donwloaded_docs
 downloaded_docs/
 .env
+
+# 가상환경
+.Project
