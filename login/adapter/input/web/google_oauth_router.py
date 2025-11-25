@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from fastapi import APIRouter
@@ -52,7 +53,7 @@ async def process_google_redirect(
     print("[INFO] Session saved in Redis: ", redis_client.exists(session_id))
 
     # 브라우저 쿠키 발급
-    redirect_response = RedirectResponse("http://localhost:2000")
+    redirect_response = RedirectResponse(os.getenv("WEB_URI"))
     redirect_response.set_cookie(
         key="session_id",
         value=session_id,
