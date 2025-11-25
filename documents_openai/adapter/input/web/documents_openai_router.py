@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, Form, HTTPException
+from fastapi import UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pypdf import PdfReader
@@ -6,8 +6,6 @@ import asyncio
 import io
 import re
 from typing import List
-
-documents_openai_router = APIRouter(tags=["documents_multi_agents"])
 
 client = OpenAI()
 
@@ -120,7 +118,6 @@ async def analyze_opinions(summary: str) -> dict:
     except:
         return {"sentiment": "unknown", "key_points": []}
 
-@documents_openai_router.post("/analyze")
 async def analyze_document(file: UploadFile, question: str = Form(...)):
     try:
         content = await file.read()
