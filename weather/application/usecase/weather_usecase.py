@@ -95,10 +95,13 @@ class WeatherUseCase:
                 return None
 
         prompt = f"""
-Below is the weather forecast for {city} on {date_str}.
-Please summarize the timeline in Korean briefly.
+다음은 {date_str} {city}의 시간대별 예보입니다.
+사용자에게 도움이 되도록 핵심만 간결하게 정리해줘:
+- 전체 요약 1~2줄 (체감 온도 포함)
+- 시간대별 주요 변화(기온/체감/습도/날씨/바람) 한 줄씩
+- 외출/우산/보온/바람 대비 등 간단 팁 1~2개
 
-Data:
+데이터(JSON):
 {[p.dict() for p in data_points]}
 """
         try:
