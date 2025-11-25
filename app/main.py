@@ -20,9 +20,8 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "http://localhost:2000",  # Next.js 프론트 엔드 URL
+    "http://localhost:3000",  # Next.js 프론트 엔드 URL
 ]
-
 
 app.add_middleware(
     CORSMiddleware,
