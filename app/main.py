@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 
 from config.database.session import Base, engine
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,12 +16,13 @@ origins = [
     "http://localhost:2000",  # Next.js 프론트 엔드 URL
 ]
 
+
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    CORSMiddleware,             
+    allow_origins=origins,      # 정확한 origin만 허용
+    allow_credentials=True,     # 쿠키 허용
+    allow_methods=["*"],        # 모든 HTTP 메서드 허용
+    allow_headers=["*"],        # 모든 헤더 허용
 )
 
 app.include_router(weather_router, prefix="/weather")

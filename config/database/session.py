@@ -1,3 +1,4 @@
+aiohttp
 import os
 import urllib.parse
 
