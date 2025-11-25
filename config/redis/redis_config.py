@@ -12,7 +12,7 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 _redis_instance = None
 
-def get_reid() -> redis.Redis:
+def get_redis() -> redis.Redis:
     global _redis_instance
     if _redis_instance is None:
         _redis_instance = redis.Redis(
