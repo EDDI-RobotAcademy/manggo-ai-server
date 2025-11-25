@@ -434,3 +434,4 @@ downloaded_docs/
 
 # 가상환경
 .Project
+.env
