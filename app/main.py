@@ -2,10 +2,13 @@ import os
 from dotenv import load_dotenv
 
 from login.adapter.input.web.google_oauth_router import login_router
+from config.database.session import Base, engine
+from documents_openai.adapter.input.web.documents_openai_router import documents_openai_router
 
 load_dotenv()
 
-from config.database.session import Base, engine
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["TORCH_USE_CUDA_DSA"] = "1"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +35,7 @@ app.add_middleware(
 app.include_router(login_router, prefix="/login")
 
 app.include_router(weather_router, prefix="/weather")
+app.include_router(documents_openai_router, prefix="/documents-openai")
 
 # 앱 실행
 if __name__ == "__main__":
