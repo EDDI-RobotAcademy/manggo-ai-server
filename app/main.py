@@ -1,6 +1,10 @@
 import os
 from dotenv import load_dotenv
 
+from login.adapter.input.web.google_oauth_router import login_router
+
+load_dotenv()
+
 from config.database.session import Base, engine
 
 from fastapi import FastAPI
@@ -18,12 +22,14 @@ origins = [
 
 
 app.add_middleware(
-    CORSMiddleware,             
+    CORSMiddleware,
     allow_origins=origins,      # 정확한 origin만 허용
     allow_credentials=True,     # 쿠키 허용
     allow_methods=["*"],        # 모든 HTTP 메서드 허용
     allow_headers=["*"],        # 모든 헤더 허용
 )
+
+app.include_router(login_router, prefix="/login")
 
 app.include_router(weather_router, prefix="/weather")
 
