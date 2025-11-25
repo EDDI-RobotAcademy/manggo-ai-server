@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 
 from login.adapter.input.web.google_oauth_router import login_router
 from config.database.session import Base, engine
-from documents_openai.adapter.input.web.documents_openai_router import documents_openai_router
+from documents_openai.adapter.input.web.documents_openai_router import documents_openadocuments_openai_routeri_router
+from login.adapter.input.web.logout_router import logout_router
 
 load_dotenv()
 
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(login_router, prefix="/login")
 
+app.include_router(logout_router, prefix="/logout")
 app.include_router(weather_router, prefix="/weather")
 app.include_router(documents_openai_router, prefix="/documents-openai")
 
