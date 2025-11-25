@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+from login.adapter.input.web.google_oauth_router import login_router
+
 load_dotenv()
 
 from config.database.session import Base, engine
@@ -20,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],         # 모든 HTTP 메서드 허용
     allow_headers=["*"],         # 모든 헤더 허용
 )
+
+app.include_router(login_router, prefix="/login")
 
 # 앱 실행
 if __name__ == "__main__":
