@@ -1,7 +1,15 @@
 import os
 from dotenv import load_dotenv
 
+from login.adapter.input.web.google_oauth_router import login_router
 from config.database.session import Base, engine
+from documents_openai.adapter.input.web.documents_openai_router import documents_openadocuments_openai_routeri_router
+from login.adapter.input.web.logout_router import logout_router
+
+load_dotenv()
+
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+os.environ["TORCH_USE_CUDA_DSA"] = "1"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,19 +21,22 @@ load_dotenv()
 app = FastAPI()
 
 origins = [
-    "http://localhost:2000",  # Next.js 프론트 엔드 URL
+    "http://localhost:3000",  # Next.js 프론트 엔드 URL
 ]
 
-
 app.add_middleware(
-    CORSMiddleware,             
+    CORSMiddleware,
     allow_origins=origins,      # 정확한 origin만 허용
     allow_credentials=True,     # 쿠키 허용
     allow_methods=["*"],        # 모든 HTTP 메서드 허용
     allow_headers=["*"],        # 모든 헤더 허용
 )
 
+app.include_router(login_router, prefix="/login")
+
+app.include_router(logout_router, prefix="/logout")
 app.include_router(weather_router, prefix="/weather")
+app.include_router(documents_openai_router, prefix="/documents-openai")
 
 # 앱 실행
 if __name__ == "__main__":
