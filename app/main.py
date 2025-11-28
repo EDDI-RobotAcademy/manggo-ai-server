@@ -1,6 +1,7 @@
 import os
 
 import uvicorn
+import aiohttp
 from dotenv import load_dotenv
 
 from login.adapter.input.web.google_oauth_router import login_router
@@ -18,13 +19,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from weather.adapter.input.web.weather_router import weather_router
-
-load_dotenv()
+from crawling.adapter.input.web.crawling_router import crawling_router
 
 app = FastAPI()
+load_dotenv()
+app.include_router(crawling_router, prefix="/crawling")
 
 origins = [
     "http://localhost:3000",  # Next.js 프론트 엔드 URL
+    "http://localhost:2000", # Next.js 프론트 엔드 URL
 ]
 
 app.add_middleware(
@@ -54,6 +57,7 @@ async def test_report_mail(background_tasks: BackgroundTasks):
     """테스트용: 즉시 메일 발송 트리거"""
     background_tasks.add_task(job_send_daily_mail)
     return {"message": "Report mail task triggered in background"}
+app.include_router(crawling_router, prefix="/crawling")
 
 # 앱 실행
 if __name__ == "__main__":
