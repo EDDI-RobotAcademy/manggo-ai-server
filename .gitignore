@@ -282,6 +282,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+manggo
+.env
 
 # Translations
 *.mo
@@ -435,3 +437,4 @@ downloaded_docs/
 # 가상환경
 .Project
 .env
+documents_openai/infrastructure/orm/__init__.py
