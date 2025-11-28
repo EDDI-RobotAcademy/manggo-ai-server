@@ -22,6 +22,7 @@ class OpenAISummarizer(TextSummarizerPort):
                 {"role": "user", "content": content}
             ]
         )
+
         summary_text = summary_response.choices[0].message.content
 
         # 제목 생성
@@ -32,6 +33,7 @@ class OpenAISummarizer(TextSummarizerPort):
                 {"role": "user", "content": summary_text}
             ]
         )
+
         title = title_response.choices[0].message.content.strip()
 
         return title, summary_text

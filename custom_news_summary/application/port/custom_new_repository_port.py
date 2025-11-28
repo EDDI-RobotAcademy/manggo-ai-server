@@ -19,3 +19,7 @@ class CustomNewsSummaryRepositoryPort(ABC):
     @abstractmethod
     def find_by_user_id(self, user_id: str) -> list[NewsSummary]:
         pass
+
+    @abstractmethod
+    def get_custom_new_history_detail(self, summary_id: int, user_id: str) -> NewsSummary:
+        pass

@@ -29,7 +29,7 @@ class CreateNewsSummaryUseCase:
         if not content:
             raise ValueError("크롤링이 불가능한 url입니다.")
 
-        title, summary_text = self.summarizer.summarize(content)
+        # title, summary_text = self.summarizer.summarize(content)
 
         # 3. 도메인 엔티티 생성
         news_summary = NewsSummary(
@@ -39,8 +39,10 @@ class CreateNewsSummaryUseCase:
             source_url=url,
             file_name=None,
             file_path=None,
-            summary_title=title,
-            summary_text=summary_text
+            summary_title=content[:10],
+            summary_text=content
+            # summary_title=title,
+            # summary_text=summary_text
         )
 
         # 4. 저장
@@ -72,3 +74,7 @@ class CreateNewsSummaryUseCase:
     def get_all_custom_news_history(self, user_id: str, page: int = 1, size: int = 10) -> Tuple[List[NewsSummary], int]:
         custom_news_history, total = self.repository.find_all(user_id, page, size)
         return custom_news_history, total
+
+    def get_custom_new_history_detail(self, summary_id: int, user_id: str) -> NewsSummary:
+        summary = self.repository.get_custom_new_history_detail(summary_id, user_id)
+        return summary
