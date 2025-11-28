@@ -17,9 +17,10 @@ os.environ["TORCH_USE_CUDA_DSA"] = "1"
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from weather.adapter.input.web.weather_router import weather_router
-from crawling.adapter.input.web.crawling_router import crawling_router
+from news.adapter.input.web.news_router import news_router
+
+load_dotenv()
 
 app = FastAPI()
 load_dotenv()
