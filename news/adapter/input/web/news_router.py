@@ -1,17 +1,24 @@
-﻿from fastapi import APIRouter, HTTPException, Depends, Query
+﻿from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
 from urllib.parse import quote
 from sqlalchemy.orm import Session
 
-from app.db import get_db
+from config.database.session import get_db
 
 from news.adapter.input.web.request.news_analyze_request import NewsTextAnalyzeRequest
 from news.adapter.input.web.request.news_summary_request import NewsSummarizeRequest
-from news.adapter.input.web.response.news_summary_response import NewsSummaryResponse
+from news.adapter.input.web.response.news_detail_response import NewsSummaryResponse, ArticleDetailResponse
 from news.application.usecase.news_usecase import NewsUseCase, make_pdf_bytes
 
 news_router = APIRouter(tags=["news"])
 news_usecase = NewsUseCase()
+
+from news.application.usecase.news_usecase import NewsUseCase
+
+router = APIRouter(prefix="/news", tags=["news"])
+usecase = NewsUseCase()
 
 @news_router.post("/summarize", response_model=NewsSummaryResponse)
 async def summarize_news(request: NewsSummarizeRequest):
@@ -46,20 +53,25 @@ async def summarize_news_pdf(request: NewsSummarizeRequest):
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
 
-# --- DB: 리스트 뿌리기 / 상세 ---
+
+def _parse_date(s: str) -> datetime:
+    return datetime.strptime(s, "%Y-%m-%d")
+
 @news_router.get("/articles")
 def list_articles(
     db: Session = Depends(get_db),
-    category: str | None = Query(None),
-    date: str | None = Query(None, description="YYYY-MM-DD"),
-    from_: str | None = Query(None, alias="from", description="YYYY-MM-DD"),
-    to: str | None = Query(None, description="YYYY-MM-DD"),
-    q: str | None = Query(None, description="title keyword"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    category_id: int | None = Query(None),
 ):
-    return news_usecase.list_articles(db=db, category=category, date=date, from_=from_, to=to, q=q, page=page, size=size)
+    return news_usecase.list_articles(db=db, page=page, size=size, category_id=category_id)
 
+# 2) 뉴스 상세(본문 + 최신 요약)
 @news_router.get("/articles/{article_id}")
-def get_article(article_id: int, db: Session = Depends(get_db)):
-    return news_usecase.get_article(db=db, article_id=article_id)
+def get_article_detail(article_id: int, db: Session = Depends(get_db)):
+    return news_usecase.get_article_detail(db=db, article_id=article_id)
+
+
+@news_router.get("/articles/{article_id}/summary")
+def get_article_summary(article_id: int):
+    return usecase.get_article_summary(article_id)

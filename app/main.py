@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 from login.adapter.input.web.google_oauth_router import login_router
 from config.database.session import Base, engine
 from login.adapter.input.web.logout_router import logout_router
-from news.adapter.input.web.news_router import news_router
 from custom_news_summary.adapter.input.web.custom_news_summary_router import custom_news_summary_router
+from news.adapter.input.web.news_router import news_router
+app.include_router(news_router)
+
 
 load_dotenv()
 
@@ -18,6 +20,7 @@ os.environ["TORCH_USE_CUDA_DSA"] = "1"
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from weather.adapter.input.web.weather_router import weather_router
+from crawling.adapter.input.web.crawling_router import crawling_router
 from news.adapter.input.web.news_router import news_router
 
 load_dotenv()

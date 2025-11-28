@@ -15,8 +15,14 @@ from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_, desc
 
-from news.domain.article import Article
+from news.infrastructure.repository.news_repository import NewsRepository
+from news.infrastructure.orm.summary_history_orm import SummaryHistoryORM
+from news.infrastructure.orm.publisher_orm import PublisherORM
+from news.infrastructure.orm.news_article_orm import NewsArticleORM
+from weather.infrastructure.orm.news_category_orm import NewsCategoryORM
 
+ARTICLE_SUMMARY_TYPE = "ARTICLE"
+MODEL = NewsArticleORM
 KST = ZoneInfo("Asia/Seoul")
 
 # ---------- helpers ----------
@@ -83,7 +89,6 @@ def make_pdf_bytes(title: str, body: str) -> bytes:
     c.save()
     return buf.getvalue()
 
-# ---------- usecase ----------
 class NewsUseCase:
     def __init__(self):
         self.client = AsyncOpenAI()
@@ -209,80 +214,14 @@ class NewsUseCase:
         }
 
     # ---------- DB ----------
-    def _parse_yyyy_mm_dd(self, s: str) -> date_type:
-        return datetime.strptime(s, "%Y-%m-%d").date()
+    def __init__(self):
+        self.repo = NewsRepository()
 
-    def _day_range_kst(self, d: date_type):
-        start = datetime.combine(d, time.min).replace(tzinfo=KST)
-        end = start + timedelta(days=1)
-        return start.replace(tzinfo=None), end.replace(tzinfo=None)
+    def list_articles(self, db: Session, page: int, size: int, category_id: int | None = None):
+        return self.repo.list_articles(db=db, page=page, size=size, category_id=category_id)
 
-    def list_articles(
-        self, db: Session,
-        category: str | None, date: str | None, from_: str | None, to: str | None, q: str | None,
-        page: int, size: int
-    ) -> dict:
-        filters = []
-        if category:
-            filters.append(Article.category == category)
-
-        if date:
-            d = self._parse_yyyy_mm_dd(date)
-            start, end = self._day_range_kst(d)
-            filters.append(and_(Article.published_at >= start, Article.published_at < end))
-        else:
-            if from_:
-                d = self._parse_yyyy_mm_dd(from_)
-                start, _ = self._day_range_kst(d)
-                filters.append(Article.published_at >= start)
-            if to:
-                d = self._parse_yyyy_mm_dd(to)
-                _, end = self._day_range_kst(d)
-                filters.append(Article.published_at < end)
-
-        if q:
-            filters.append(Article.title.like(f"%{q}%"))
-
-        where_clause = and_(*filters) if filters else None
-
-        total_stmt = select(func.count()).select_from(Article)
-        if where_clause is not None:
-            total_stmt = total_stmt.where(where_clause)
-        total = db.execute(total_stmt).scalar_one()
-
-        stmt = select(Article).order_by(desc(Article.published_at)).offset((page - 1) * size).limit(size)
-        if where_clause is not None:
-            stmt = stmt.where(where_clause)
-
-        rows = db.execute(stmt).scalars().all()
-
-        return {
-            "page": page,
-            "size": size,
-            "total": total,
-            "items": [
-                {
-                    "id": r.id,
-                    "title": r.title,
-                    "source": r.source,
-                    "category": r.category,
-                    "url": r.url,
-                    "published_at": r.published_at.isoformat(),
-                }
-                for r in rows
-            ],
-        }
-
-    def get_article(self, db: Session, article_id: int) -> dict:
-        row = db.get(Article, article_id)
-        if not row:
+    def get_article_detail(self, db: Session, article_id: int):
+        data = self.repo.get_article_detail(db=db, article_id=article_id)
+        if not data:
             raise HTTPException(status_code=404, detail="Article not found")
-        return {
-            "id": row.id,
-            "title": row.title,
-            "source": row.source,
-            "category": row.category,
-            "url": row.url,
-            "published_at": row.published_at.isoformat(),
-            "content": row.content,
-        }
+        return data        }

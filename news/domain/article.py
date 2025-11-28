@@ -6,7 +6,7 @@ class Base(DeclarativeBase):
     pass
 
 class Article(Base):
-    __tablename__ = "news_article"
+    __tablename__ = "NewsArticle"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
