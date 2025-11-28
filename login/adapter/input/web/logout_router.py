@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
 
 from config.redis.redis_config import get_redis
 
@@ -17,7 +17,9 @@ async def logout(request: Request):
         # Remove session data from Redis if it exists
         redis_client.delete(session_id)
     # Redirect to front‑end (or home) after logout
-    redirect_url = os.getenv("WEB_URI") or "/"
-    response = RedirectResponse(redirect_url)
+    response = JSONResponse(
+        content={"message": "Logged out successfully"},
+        status_code=200
+    )
     response.delete_cookie(key="session_id")
     return response

@@ -7,6 +7,7 @@ from login.adapter.input.web.google_oauth_router import login_router
 from config.database.session import Base, engine
 from login.adapter.input.web.logout_router import logout_router
 from news.adapter.input.web.news_router import news_router
+from custom_news_summary.adapter.input.web.custom_news_summary_router import custom_news_summary_router
 
 load_dotenv()
 
@@ -38,6 +39,7 @@ app.include_router(login_router, prefix="/login")
 app.include_router(logout_router, prefix="/logout")
 app.include_router(weather_router, prefix="/weather")
 app.include_router(news_router, prefix="/news")
+app.include_router(custom_news_summary_router, prefix="/custom-news")
 
 from report_mail.infrastructure.scheduler import start_scheduler, job_send_daily_mail
 from fastapi import BackgroundTasks
