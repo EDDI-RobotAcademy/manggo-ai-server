@@ -1,4 +1,4 @@
-from sqlalchemy import String
+from sqlalchemy import String, desc
 
 from config.database.session import get_db_session
 from sqlalchemy.orm import Session
@@ -63,7 +63,10 @@ class CustomNewsSummaryRepositoryImpl(CustomNewsSummaryRepositoryPort):
         )
 
     def find_all(self, user_id: str, page: int, size: int) -> tuple[list[NewsSummary], int]:
-        query = self.db.query(CustomNewsSummaryORM).filter(CustomNewsSummaryORM.user_id == user_id)
+        query = (self.db.query(CustomNewsSummaryORM)
+                 .filter(CustomNewsSummaryORM.user_id == user_id)
+                 .order_by(desc(CustomNewsSummaryORM.created_at))
+                 )
 
         total = query.count()
 
@@ -71,3 +74,9 @@ class CustomNewsSummaryRepositoryImpl(CustomNewsSummaryRepositoryPort):
         orms = query.offset((page - 1) * size).limit(size).all()
         print(orms)
         return [NewsSummary.from_orm(orm) for orm in orms], total
+
+    def get_custom_new_history_detail(self, summary_id:int, user_id: str) -> NewsSummary:
+        query = self.db.query(CustomNewsSummaryORM).filter(CustomNewsSummaryORM.summary_id == summary_id).filter(CustomNewsSummaryORM.user_id == user_id)
+
+        result = query.first()
+        return result
