@@ -1,4 +1,6 @@
 import os
+
+import uvicorn
 from dotenv import load_dotenv
 
 from login.adapter.input.web.google_oauth_router import login_router
@@ -33,14 +35,26 @@ app.add_middleware(
 )
 
 app.include_router(login_router, prefix="/login")
-
 app.include_router(logout_router, prefix="/logout")
 app.include_router(weather_router, prefix="/weather")
 app.include_router(news_router, prefix="/news")
 
+from report_mail.infrastructure.scheduler import start_scheduler, job_send_daily_mail
+from fastapi import BackgroundTasks
+
+# 앱 실행 시 스케줄러 시작
+@app.on_event("startup")
+def on_startup():
+    start_scheduler()
+
+@app.post("/report-mail/test")
+async def test_report_mail(background_tasks: BackgroundTasks):
+    """테스트용: 즉시 메일 발송 트리거"""
+    background_tasks.add_task(job_send_daily_mail)
+    return {"message": "Report mail task triggered in background"}
+
 # 앱 실행
 if __name__ == "__main__":
-    import uvicorn
     host = os.getenv("APP_HOST")
     port = int(os.getenv("APP_PORT"))
     # Base.metadata.drop_all(bind=engine)
