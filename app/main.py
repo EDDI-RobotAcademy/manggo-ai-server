@@ -1,5 +1,4 @@
 import os
-import aiohttp
 from dotenv import load_dotenv
 
 from config.database.session import Base, engine
@@ -8,14 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from weather.adapter.input.web.weather_router import weather_router
-from crawling.adapter.input.web.crawling_router import crawling_router
+
+load_dotenv()
 
 app = FastAPI()
-load_dotenv()
-app.include_router(crawling_router, prefix="/crawling")
 
 origins = [
-    "http://localhost:2000", # Next.js 프론트 엔드 URL
+    "http://localhost:2000",  # Next.js 프론트 엔드 URL
 ]
 
 
@@ -28,7 +26,6 @@ app.add_middleware(
 )
 
 app.include_router(weather_router, prefix="/weather")
-app.include_router(crawling_router, prefix="/crawling")
 
 # 앱 실행
 if __name__ == "__main__":
