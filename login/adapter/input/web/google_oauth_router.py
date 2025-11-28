@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import Request
+from fastapi import Request, Cookie
 
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
@@ -27,7 +27,6 @@ async def process_google_redirect(
         code: str,
         state: str | None = None
 ):
-
     result = google_usecase.fetch_user_profile(code, state or "")
     profile = result["profile"]
     access_token = result["access_token"]
@@ -51,7 +50,6 @@ async def process_google_redirect(
     )
     redis_client.expire(session_id, 3600)
 
-    print("[INFO] Session saved in Redis: ", redis_client.exists(session_id))
 
     # 브라우저 쿠키 발급
     redirect_response = RedirectResponse(os.getenv("WEB_URI"))
@@ -64,3 +62,16 @@ async def process_google_redirect(
         max_age=3600
     )
     return redirect_response
+
+@login_router.get("/status")
+async def auth_status(request: Request, session_id: str | None = Cookie(None)):
+
+
+    if not session_id:
+        return {"logged_in": False}
+
+    exists = redis_client.exists(session_id)
+
+    data = redis_client.hgetall(session_id)
+
+    return {"logged_in": bool(exists), "email": str(data.get("email"))}
