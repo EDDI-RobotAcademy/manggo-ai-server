@@ -12,6 +12,7 @@ class NewsSummaryResponse(BaseModel):
     source_type: str
     source_url: Optional[str]
     file_name: Optional[str]
+    file_path: Optional[str]
     summary_title: str
     summary_text: str
     created_at: datetime
@@ -24,6 +25,7 @@ class NewsSummaryResponse(BaseModel):
             source_type=summary.source_type.value,
             source_url=summary.source_url,
             file_name=summary.file_name,
+            file_path=summary.file_path,
             summary_title=summary.summary_title,
             summary_text=summary.summary_text,
             created_at=summary.created_at

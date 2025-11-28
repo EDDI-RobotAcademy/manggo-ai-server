@@ -4,6 +4,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Cookie, Query
 
 from config.redis.redis_config import get_redis
+from custom_news_summary.adapter.input.web.request.custom_news_history_detail_request import \
+    CustomNewsHistoryDetailRequest
 from custom_news_summary.adapter.input.web.request.news_summary_request import CreateNewsSummaryURLRequest
 from custom_news_summary.adapter.input.web.response.news_summary_list_response import NewsSummaryListResponse
 from custom_news_summary.adapter.input.web.response.news_summary_response import NewsSummaryResponse
@@ -52,8 +54,8 @@ async def create_summary_from_url(
         request: CreateNewsSummaryURLRequest,
         session_id: str | None = Cookie(None)
 ):
-    """URL로부터 뉴스 요약 생성"""
     try:
+
         data = redis_client.hgetall(session_id)
 
         if not data:
@@ -61,7 +63,6 @@ async def create_summary_from_url(
 
         user_id = data.get("email")
 
-        print(request.url)
         summary = custom_news_summary_usecase.execute_from_url(user_id, str(request.url))
 
         return NewsSummaryResponse(
@@ -70,10 +71,13 @@ async def create_summary_from_url(
             source_type=summary.source_type.value,
             source_url=summary.source_url,
             file_name=summary.file_name,
+            file_path=summary.file_path,
             summary_title=summary.summary_title,
             summary_text=summary.summary_text,
             created_at=summary.created_at
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -108,11 +112,41 @@ async def create_summary_from_pdf(
             source_type=summary.source_type.value,
             source_url=summary.source_url,
             file_name=summary.file_name,
+            file_path=summary.file_path,
             summary_title=summary.summary_title,
             summary_text=summary.summary_text,
             created_at=summary.created_at
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@custom_news_summary_router.get("/detail", response_model=NewsSummaryResponse)
+async def get_custom_news_history_detail(
+        summary_id: int,
+        session_id: str | None = Cookie(None)
+):
+    try:
+        data = redis_client.hgetall(session_id)
+
+        if not data:
+            raise HTTPException(status_code=401, detail="Invalid or expired session")
+
+        user_id = data.get("email")
+
+        summary = custom_news_summary_usecase.get_custom_new_history_detail(summary_id, user_id)
+
+        return NewsSummaryResponse(
+            summary_id=summary.summary_id,
+            user_id=summary.user_id,
+            source_type=summary.source_type.value,
+            source_url=summary.source_url,
+            file_name=summary.file_name,
+            file_path=summary.file_path,
+            summary_title=summary.summary_title,
+            summary_text=summary.summary_text,
+            created_at=summary.created_at
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
