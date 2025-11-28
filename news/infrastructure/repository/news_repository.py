@@ -6,7 +6,7 @@ from config.database.session import get_db_session
 from news.infrastructure.orm.news_article_orm import NewsArticleORM
 from weather.infrastructure.orm.news_category_orm import NewsCategoryORM
 from news.infrastructure.orm.publisher_orm import PublisherORM
-from news.infrastructure.orm.summary_history_orm import SummaryHistoryORM
+from weather.infrastructure.orm.summary_history_orm import SummaryHistoryORM
 
 class NewsRepository:
     def list_articles(self, db: Session, page: int, size: int, category_id: int | None = None):
@@ -97,4 +97,25 @@ class NewsRepository:
             "published_at": article.published_at.isoformat(),
             "summary_text": summary_row.summary_text if summary_row else None,
             "summary_created_at": summary_row.created_at.isoformat() if summary_row else None,
+        }
+
+    def get_latest_summary(self, db: Session, article_id: int):
+        summary_stmt = (
+            select(
+                SummaryHistoryORM.summary_id,
+                SummaryHistoryORM.summary_text,
+                SummaryHistoryORM.created_at,
+            )
+            .where(SummaryHistoryORM.article_id == article_id)
+            .order_by(desc(SummaryHistoryORM.created_at))
+            .limit(1)
+        )
+        summary = db.execute(summary_stmt).first()
+        if not summary:
+            return None
+        return {
+            "summary_id": summary.summary_id,
+            "article_id": article_id,
+            "summary_text": summary.summary_text,
+            "created_at": summary.created_at.isoformat() if summary.created_at else None,
         }

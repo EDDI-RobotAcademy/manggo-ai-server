@@ -1,29 +1,24 @@
-﻿from __future__ import annotations
-from datetime import datetime, timedelta, time, date as date_type
-from zoneinfo import ZoneInfo
-from typing import List, Optional
-from io import BytesIO
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from __future__ import annotations
 
-import json, re
+import json
+import re
+from datetime import datetime
+from io import BytesIO
+from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from openai import AsyncOpenAI
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfgen import canvas
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_, desc
 
 from news.infrastructure.repository.news_repository import NewsRepository
-from news.infrastructure.orm.summary_history_orm import SummaryHistoryORM
-from news.infrastructure.orm.publisher_orm import PublisherORM
-from news.infrastructure.orm.news_article_orm import NewsArticleORM
-from weather.infrastructure.orm.news_category_orm import NewsCategoryORM
 
-ARTICLE_SUMMARY_TYPE = "ARTICLE"
-MODEL = NewsArticleORM
 KST = ZoneInfo("Asia/Seoul")
+
 
 # ---------- helpers ----------
 def clean_news_text(text: str) -> str:
@@ -32,6 +27,7 @@ def clean_news_text(text: str) -> str:
     t = re.sub(r"\n{3,}", "\n\n", t).strip()
     t = re.sub(r"(무단\s*전재\s*및\s*재배포\s*금지).*$", "", t, flags=re.IGNORECASE | re.DOTALL).strip()
     return t
+
 
 def chunk_text(text: str, chunk_size: int = 3500, overlap: int = 300) -> List[str]:
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
@@ -59,6 +55,7 @@ def chunk_text(text: str, chunk_size: int = 3500, overlap: int = 300) -> List[st
         chunks = overlapped
 
     return chunks
+
 
 def make_pdf_bytes(title: str, body: str) -> bytes:
     pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
@@ -89,9 +86,11 @@ def make_pdf_bytes(title: str, body: str) -> bytes:
     c.save()
     return buf.getvalue()
 
+
 class NewsUseCase:
     def __init__(self):
         self.client = AsyncOpenAI()
+        self.repo = NewsRepository()
 
     async def _ask_gpt(self, model: str, prompt: str, max_tokens: int, temperature: float = 0.0) -> str:
         try:
@@ -214,9 +213,6 @@ class NewsUseCase:
         }
 
     # ---------- DB ----------
-    def __init__(self):
-        self.repo = NewsRepository()
-
     def list_articles(self, db: Session, page: int, size: int, category_id: int | None = None):
         return self.repo.list_articles(db=db, page=page, size=size, category_id=category_id)
 
@@ -224,4 +220,10 @@ class NewsUseCase:
         data = self.repo.get_article_detail(db=db, article_id=article_id)
         if not data:
             raise HTTPException(status_code=404, detail="Article not found")
-        return data        }
+        return data
+
+    def get_article_summary(self, db: Session, article_id: int):
+        summary = self.repo.get_latest_summary(db=db, article_id=article_id)
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+        return summary

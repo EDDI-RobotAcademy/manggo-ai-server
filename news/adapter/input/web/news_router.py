@@ -15,11 +15,6 @@ from news.application.usecase.news_usecase import NewsUseCase, make_pdf_bytes
 news_router = APIRouter(tags=["news"])
 news_usecase = NewsUseCase()
 
-from news.application.usecase.news_usecase import NewsUseCase
-
-router = APIRouter(prefix="/news", tags=["news"])
-usecase = NewsUseCase()
-
 @news_router.post("/summarize", response_model=NewsSummaryResponse)
 async def summarize_news(request: NewsSummarizeRequest):
     result = await news_usecase.summarize_news(request.text)
@@ -73,5 +68,5 @@ def get_article_detail(article_id: int, db: Session = Depends(get_db)):
 
 
 @news_router.get("/articles/{article_id}/summary")
-def get_article_summary(article_id: int):
-    return usecase.get_article_summary(article_id)
+def get_article_summary(article_id: int, db: Session = Depends(get_db)):
+    return news_usecase.get_article_summary(db=db, article_id=article_id)
