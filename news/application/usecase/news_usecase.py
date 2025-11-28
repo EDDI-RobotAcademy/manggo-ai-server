@@ -163,37 +163,6 @@ async def analyze_opinions(model: str, summary: str) -> dict:
     except Exception:
         return {"sentiment": "unknown", "key_points": []}
 
-
-@app.post("/news/analyze")
-async def analyze_news(req: NewsTextAnalyzeRequest):
-    try:
-        if not (req.text or "").strip():
-            raise HTTPException(status_code=400, detail="Empty text")
-
-        cleaned = clean_news_text(req.text)
-        if not cleaned:
-            raise HTTPException(status_code=400, detail="No usable text after cleaning")
-
-        chunks = chunk_text(cleaned)
-        if not chunks:
-            raise HTTPException(status_code=500, detail="Chunking failed")
-
-        summary = await summarize_news(model=req.model, chunks=chunks, max_bullets=req.max_summary_bullets)
-
-        answer = None
-        if req.question and req.question.strip():
-            answer = await qa_on_summary(model=req.model, summary=summary, question=req.question.strip())
-
-        analysis = await analyze_opinions(model=req.model, summary=summary)
-
-        return {
-            "cleaned_text": cleaned,
-            "chunk_count": len(chunks),
-            "summary": summary,
-            "answer": answer,
-            "analysis": analysis,
-        }
-
     except HTTPException:
         raise
     except Exception as e:
