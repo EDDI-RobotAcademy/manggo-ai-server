@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from config.database.session import get_db_session
-from crawling.infrastructure.orm.news_article_orm import NewsArticleORM
+from news.infrastructure.orm.news_article_orm import NewsArticleORM
 from weather.infrastructure.orm.news_category_orm import NewsCategoryORM
 
 

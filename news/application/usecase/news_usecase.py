@@ -1,42 +1,28 @@
-﻿from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-from openai import AsyncOpenAI
-import asyncio  # (안 써도 되지만 구성 유지)
+from __future__ import annotations
+
 import json
 import re
+from datetime import datetime
+from io import BytesIO
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
-app = FastAPI()
-client = AsyncOpenAI()
+from fastapi import HTTPException
+from openai import AsyncOpenAI
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfgen import canvas
+from sqlalchemy.orm import Session
 
+from news.infrastructure.repository.news_repository import NewsRepository
 
-class NewsTextAnalyzeRequest(BaseModel):
-    text: str = Field(..., description="뉴스 원문 텍스트")
-    question: Optional[str] = Field(None, description="요약 기반으로 답할 질문(선택)")
-    max_summary_bullets: int = Field(6, ge=3, le=12, description="요약 불릿 개수(3~12)")
-    model: str = Field("gpt-4.1", description="사용 모델명")
-
-
-class NewsUseCase:
-    def __init__(self):
-        self.client = AsyncOpenAI()
-
-    async def summarize_news(self, text: str) -> dict:
-        cleaned = re.sub(r"\s+", " ", (text or "")).strip()
-        if not cleaned:
-            return {"summary": ""}
-
-        resp = await self.client.chat.completions.create(
-            model="gpt-4.1",
-            messages=[{"role": "user", "content": f"다음 뉴스 핵심을 5줄로 요약해줘:\n\n{cleaned}"}],
-            max_tokens=400,
-            temperature=0,
-        )
-        return {"summary": resp.choices[0].message.content.strip()}
+KST = ZoneInfo("Asia/Seoul")
 
 
+# ---------- helpers ----------
 def clean_news_text(text: str) -> str:
-    t = re.sub(r"\r\n?", "\n", text)
+    t = re.sub(r"\r\n?", "\n", text or "")
     t = re.sub(r"[ \t]+", " ", t)
     t = re.sub(r"\n{3,}", "\n\n", t).strip()
     t = re.sub(r"(무단\s*전재\s*및\s*재배포\s*금지).*$", "", t, flags=re.IGNORECASE | re.DOTALL).strip()
@@ -71,25 +57,66 @@ def chunk_text(text: str, chunk_size: int = 3500, overlap: int = 300) -> List[st
     return chunks
 
 
-async def ask_gpt(model: str, prompt: str, max_tokens: int = 500, temperature: float = 0.0) -> str:
-    try:
-        resp = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        # OpenAI 쪽 에러를 FastAPI에서 보기 쉽게 올려줌
-        raise HTTPException(status_code=502, detail=f"OpenAI call failed: {type(e).__name__}: {str(e)}")
+def make_pdf_bytes(title: str, body: str) -> bytes:
+    pdfmetrics.registerFont(UnicodeCIDFont("HYSMyeongJo-Medium"))
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    w, h = A4
+
+    c.setFont("HYSMyeongJo-Medium", 16)
+    c.drawString(40, h - 60, title)
+
+    c.setFont("HYSMyeongJo-Medium", 11)
+    t = c.beginText(40, h - 90)
+    t.setLeading(16)
+
+    for line in (body or "").splitlines():
+        line = line.rstrip()
+        if not line:
+            t.textLine("")
+            continue
+        while len(line) > 60:
+            t.textLine(line[:60])
+            line = line[60:]
+        t.textLine(line)
+
+    c.drawText(t)
+    c.showPage()
+    c.save()
+    return buf.getvalue()
 
 
-async def summarize_news(model: str, chunks: List[str], max_bullets: int) -> str:
-    partial_summaries = []
+class NewsUseCase:
+    def __init__(self):
+        self.client = AsyncOpenAI()
+        self.repo = NewsRepository()
 
-    for idx, chunk in enumerate(chunks):
-        prompt = f"""
+    async def _ask_gpt(self, model: str, prompt: str, max_tokens: int, temperature: float = 0.0) -> str:
+        try:
+            resp = await self.client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"OpenAI call failed: {type(e).__name__}: {str(e)}")
+
+    async def summarize_news(self, text: str) -> dict:
+        cleaned = re.sub(r"\s+", " ", (text or "")).strip()
+        if not cleaned:
+            return {"summary": ""}
+
+        prompt = f"다음 뉴스 핵심을 5줄로 요약해줘:\n\n{cleaned}"
+        summary = await self._ask_gpt(model="gpt-4.1", prompt=prompt, max_tokens=400, temperature=0)
+        return {"summary": summary}
+
+    async def summarize_news_chunks(self, model: str, chunks: List[str], max_bullets: int) -> str:
+        partial_summaries = []
+        for idx, chunk in enumerate(chunks):
+            prompt = f"""
 너는 뉴스 요약 에이전트다.
 다음은 뉴스 기사 일부다. 사실 중심으로 핵심만 간결하게 요약해라.
 - 과장/추론 금지, 기사에 있는 내용만.
@@ -101,12 +128,11 @@ async def summarize_news(model: str, chunks: List[str], max_bullets: int) -> str
 [출력]
 - 3~5줄 요약(문장형)
 """
-        s = await ask_gpt(model=model, prompt=prompt, max_tokens=320)
-        partial_summaries.append(s)
+            s = await self._ask_gpt(model=model, prompt=prompt, max_tokens=320, temperature=0)
+            partial_summaries.append(s)
 
-    merged = "\n".join(partial_summaries)
-
-    final_prompt = f"""
+        merged = "\n".join(partial_summaries)
+        final_prompt = f"""
 너는 뉴스 통합 요약 에이전트다.
 아래는 부분 요약들을 합친 내용이다. 중복을 제거하고 핵심만 남겨 통합 요약해라.
 
@@ -118,11 +144,10 @@ async def summarize_news(model: str, chunks: List[str], max_bullets: int) -> str
 2) 핵심 불릿 {max_bullets}개 (각 1문장, 사실 중심)
 3) 키워드 8개 (쉼표로 구분)
 """
-    return await ask_gpt(model=model, prompt=final_prompt, max_tokens=600)
+        return await self._ask_gpt(model=model, prompt=final_prompt, max_tokens=600, temperature=0)
 
-
-async def qa_on_summary(model: str, summary: str, question: str) -> str:
-    prompt = f"""
+    async def qa_on_summary(self, model: str, summary: str, question: str) -> str:
+        prompt = f"""
 다음은 뉴스 요약이다. 요약에 포함된 정보만 사용해 질문에 답해라.
 - 추론/상상 금지
 - 요약에 근거가 없으면: "문서에 해당 정보 없음"
@@ -135,11 +160,10 @@ async def qa_on_summary(model: str, summary: str, question: str) -> str:
 
 [답변]
 """
-    return await ask_gpt(model=model, prompt=prompt, max_tokens=250)
+        return await self._ask_gpt(model=model, prompt=prompt, max_tokens=250, temperature=0)
 
-
-async def analyze_opinions(model: str, summary: str) -> dict:
-    prompt = f"""
+    async def analyze_opinions(self, model: str, summary: str) -> dict:
+        prompt = f"""
 반드시 JSON만 출력해라. 다른 텍스트 절대 금지.
 
 [요약]
@@ -151,19 +175,55 @@ async def analyze_opinions(model: str, summary: str) -> dict:
   "key_points": ["...", "...", "...", "...", "..."]
 }}
 """
-    raw = await ask_gpt(model=model, prompt=prompt, max_tokens=250)
+        raw = await self._ask_gpt(model=model, prompt=prompt, max_tokens=250, temperature=0)
+        m = re.search(r"\{.*\}", raw, flags=re.DOTALL)
+        if not m:
+            return {"sentiment": "unknown", "key_points": []}
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            return {"sentiment": "unknown", "key_points": []}
 
-    # ✅ 모델이 JSON 앞뒤에 텍스트 섞어도 JSON만 추출해서 파싱
-    m = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-    if not m:
-        return {"sentiment": "unknown", "key_points": []}
+    async def analyze(self, text: str, question: Optional[str], max_bullets: int, model: str) -> dict:
+        if not (text or "").strip():
+            raise HTTPException(status_code=400, detail="Empty text")
 
-    try:
-        return json.loads(m.group(0))
-    except Exception:
-        return {"sentiment": "unknown", "key_points": []}
+        cleaned = clean_news_text(text)
+        if not cleaned:
+            raise HTTPException(status_code=400, detail="No usable text after cleaning")
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+        chunks = chunk_text(cleaned)
+        if not chunks:
+            raise HTTPException(status_code=500, detail="Chunking failed")
+
+        summary = await self.summarize_news_chunks(model=model, chunks=chunks, max_bullets=max_bullets)
+
+        answer = None
+        if question and question.strip():
+            answer = await self.qa_on_summary(model=model, summary=summary, question=question.strip())
+
+        analysis = await self.analyze_opinions(model=model, summary=summary)
+
+        return {
+            "cleaned_text": cleaned,
+            "chunk_count": len(chunks),
+            "summary": summary,
+            "answer": answer,
+            "analysis": analysis,
+        }
+
+    # ---------- DB ----------
+    def list_articles(self, db: Session, page: int, size: int, category_id: int | None = None):
+        return self.repo.list_articles(db=db, page=page, size=size, category_id=category_id)
+
+    def get_article_detail(self, db: Session, article_id: int):
+        data = self.repo.get_article_detail(db=db, article_id=article_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Article not found")
+        return data
+
+    def get_article_summary(self, db: Session, article_id: int):
+        summary = self.repo.get_latest_summary(db=db, article_id=article_id)
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+        return summary
