@@ -44,6 +44,10 @@ class ArticleDetailResponse(BaseModel):
     publisher_name: Optional[str] = None
     publisher_logo_url: Optional[str] = None
 
+    # 최신 요약 정보
+    summary_text: Optional[str] = None
+    summary_created_at: Optional[datetime] = None
+
 
 class ArticleSummaryResponse(BaseModel):
     summary_id: int

@@ -24,3 +24,5 @@ class ArticleDetailResponse(BaseModel):
     url: Optional[str] = None
     published_at: str
     content: str
+    summary_text: Optional[str] = None
+    summary_created_at: Optional[str] = None

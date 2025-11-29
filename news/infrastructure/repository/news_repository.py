@@ -94,9 +94,9 @@ class NewsRepository:
             "publisher_name": article.publisher_name,
             "url": article.url,
             "image_url": article.image_url,
-            "published_at": article.published_at.isoformat(),
+            "published_at": article.published_at,
             "summary_text": summary_row.summary_text if summary_row else None,
-            "summary_created_at": summary_row.created_at.isoformat() if summary_row else None,
+            "summary_created_at": summary_row.created_at if summary_row else None,
         }
 
     def get_latest_summary(self, db: Session, article_id: int):

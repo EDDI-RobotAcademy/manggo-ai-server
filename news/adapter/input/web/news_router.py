@@ -62,7 +62,7 @@ def list_articles(
     return news_usecase.list_articles(db=db, page=page, size=size, category_id=category_id)
 
 # 2) 뉴스 상세(본문 + 최신 요약)
-@news_router.get("/articles/{article_id}")
+@news_router.get("/articles/{article_id}", response_model=ArticleDetailResponse)
 def get_article_detail(article_id: int, db: Session = Depends(get_db)):
     return news_usecase.get_article_detail(db=db, article_id=article_id)
 
