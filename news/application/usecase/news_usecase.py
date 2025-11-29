@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
 from io import BytesIO
 from typing import List, Optional
 from zoneinfo import ZoneInfo
@@ -227,3 +227,11 @@ class NewsUseCase:
         if not summary:
             raise HTTPException(status_code=404, detail="Summary not found")
         return summary
+
+    def list_categories(self, db: Session):
+        return self.repo.list_categories(db=db)
+
+    def save_summary_history(self, db: Session, article_id: int, summary_text: str):
+        if not summary_text:
+            raise HTTPException(status_code=400, detail="Summary text is empty")
+        return self.repo.save_article_summary(db=db, article_id=article_id, summary_text=summary_text)
