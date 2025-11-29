@@ -16,9 +16,17 @@ news_router = APIRouter(tags=["news"])
 news_usecase = NewsUseCase()
 
 @news_router.post("/summarize", response_model=NewsSummaryResponse)
-async def summarize_news(request: NewsSummarizeRequest):
+async def summarize_news(request: NewsSummarizeRequest, db: Session = Depends(get_db)):
     result = await news_usecase.summarize_news(request.text)
-    # pydantic v1/v2 호환: dict() 사용
+
+    # 요약을 기사와 연결해야 하는 경우 SummaryHistory에 저장
+    if request.article_id:
+        try:
+            news_usecase.save_summary_history(db=db, article_id=request.article_id, summary_text=result.get("summary"))
+        except HTTPException as e:
+            # 연결 실패해도 요약 응답은 반환
+            print(f"[WARN] failed to save summary history: {e.detail}")
+
     return JSONResponse(content=NewsSummaryResponse(**result).dict())
 
 @news_router.post("/analyze")
@@ -31,7 +39,7 @@ async def analyze_news(req: NewsTextAnalyzeRequest):
     )
 
 @news_router.post("/summarize/pdf")
-async def summarize_news_pdf(request: NewsSummarizeRequest):
+async def summarize_news_pdf(request: NewsSummarizeRequest, db: Session = Depends(get_db)):
     result = await news_usecase.summarize_news(request.text)
     summary = (result.get("summary") or "").strip()
     if not summary:
@@ -47,6 +55,10 @@ async def summarize_news_pdf(request: NewsSummarizeRequest):
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
     )
+
+@news_router.get("/categories")
+def list_categories(db: Session = Depends(get_db)):
+    return news_usecase.list_categories(db=db)
 
 
 def _parse_date(s: str) -> datetime:

@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc
 
 from config.database.session import get_db_session
+from fastapi import HTTPException
+from datetime import datetime
 from news.infrastructure.orm.news_article_orm import NewsArticleORM
 from weather.infrastructure.orm.news_category_orm import NewsCategoryORM
 from news.infrastructure.orm.publisher_orm import PublisherORM
@@ -22,10 +24,12 @@ class NewsRepository:
         stmt = (
             select(
                 NewsArticleORM.article_id,
+                NewsArticleORM.category_id,
                 NewsArticleORM.title,
                 NewsArticleORM.image_url,
                 NewsArticleORM.url,
                 NewsArticleORM.published_at,
+                NewsArticleORM.summary,
                 NewsCategoryORM.category_name,
                 PublisherORM.publisher_name,
             )
@@ -45,12 +49,14 @@ class NewsRepository:
         for r in rows:
             items.append({
                 "article_id": r.article_id,
+                "category_id": r.category_id,
                 "title": r.title,
                 "category_name": r.category_name,
                 "publisher_name": r.publisher_name,
                 "image_url": r.image_url,
                 "url": r.url,
                 "published_at": r.published_at.isoformat(),
+                "latest_summary_text": r.summary,
             })
 
         return {"page": page, "size": size, "total": total, "items": items}
@@ -60,11 +66,15 @@ class NewsRepository:
         article_stmt = (
             select(
                 NewsArticleORM.article_id,
+                NewsArticleORM.category_id,
+                NewsArticleORM.publisher_id,
                 NewsArticleORM.title,
                 NewsArticleORM.content,
+                NewsArticleORM.summary,
                 NewsArticleORM.url,
                 NewsArticleORM.image_url,
                 NewsArticleORM.published_at,
+                NewsArticleORM.crawled_at,
                 NewsCategoryORM.category_name,
                 PublisherORM.publisher_name,
             )
@@ -85,9 +95,13 @@ class NewsRepository:
             .limit(1)
         )
         summary_row = db.execute(summary_stmt).first()
+        summary_text = summary_row.summary_text if summary_row else article.summary
+        summary_created_at = summary_row.created_at if summary_row else article.published_at or article.crawled_at
 
         return {
             "article_id": article.article_id,
+            "category_id": article.category_id,
+            "publisher_id": article.publisher_id,
             "title": article.title,
             "content": article.content,
             "category_name": article.category_name,
@@ -95,8 +109,9 @@ class NewsRepository:
             "url": article.url,
             "image_url": article.image_url,
             "published_at": article.published_at,
-            "summary_text": summary_row.summary_text if summary_row else None,
-            "summary_created_at": summary_row.created_at if summary_row else None,
+            "crawled_at": article.crawled_at,
+            "summary_text": summary_text,
+            "summary_created_at": summary_created_at,
         }
 
     def get_latest_summary(self, db: Session, article_id: int):
@@ -119,3 +134,29 @@ class NewsRepository:
             "summary_text": summary.summary_text,
             "created_at": summary.created_at.isoformat() if summary.created_at else None,
         }
+
+    def list_categories(self, db: Session):
+        stmt = select(NewsCategoryORM.category_id, NewsCategoryORM.category_name).order_by(NewsCategoryORM.category_id)
+        rows = db.execute(stmt).all()
+        return [{"category_id": r.category_id, "category_name": r.category_name} for r in rows]
+
+    def save_article_summary(self, db: Session, article_id: int, summary_text: str):
+        article = db.get(NewsArticleORM, article_id)
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        article.summary = summary_text
+
+        base_date = article.published_at or article.crawled_at or datetime.utcnow()
+        record = SummaryHistoryORM(
+            article_id=article_id,
+            target_type="article",
+            target_date=base_date.date(),
+            category_id=article.category_id,
+            summary_text=summary_text,
+            pdf_path=article.pdf_path,
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        return record
